@@ -59,6 +59,30 @@ defmodule Clarity.Introspector.ModuleTest do
       assert module_vertices != []
     end
 
+    test "handles modules with an explicit charlist version" do
+      # Erlang's `-vsn("1.2.0").` stores the bare charlist rather than `[vsn]`
+      {:module, mod, _binary, _} =
+        defmodule ExplicitCharlistVsn do
+          @moduledoc false
+          @vsn ~c"1.2.0"
+        end
+
+      app = :clarity_explicit_vsn_test
+
+      :ok =
+        :application.load({:application, app, [description: ~c"Test", vsn: ~c"1.0.0", modules: [mod]]})
+
+      on_exit(fn -> :application.unload(app) end)
+
+      assert mod.module_info(:attributes)[:vsn] == ~c"1.2.0"
+
+      graph = Clarity.Graph.new()
+      app_vertex = %Vertex.Application{app: app, description: "Test", version: "1.0.0"}
+
+      assert {:ok, result} = ModuleIntrospector.introspect_vertex(app_vertex, graph)
+      assert Enum.any?(result, &match?({:vertex, %Module{module: ^mod, version: :unknown}}, &1))
+    end
+
     test "detects behaviours correctly" do
       graph = Clarity.Graph.new()
       app_vertex = %Vertex.Application{app: :clarity, description: "Clarity", version: "1.0.0"}

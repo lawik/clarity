@@ -208,11 +208,14 @@ defmodule Clarity.Introspector.Module do
     end
   end
 
+  # Modules carry their MD5 as `[vsn]` unless they declare one explicitly. An
+  # explicit string version (e.g. Erlang's `-vsn("1.2.0").`) comes back as a
+  # bare charlist instead, which we treat like a missing version.
   @spec get_module_version(module :: module()) :: :unknown | String.t()
   defp get_module_version(module) do
     case module.module_info(:attributes)[:vsn] do
-      nil -> :unknown
       [version] -> version
+      _other -> :unknown
     end
   end
 
